@@ -3,11 +3,11 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import inspect, text
 
 from app.api.routes import router
 from app.core.config import get_settings
 from app.database import Base, engine
-from app.models import Agent, ExecutionLog
 from app.services.executor import execution_manager
 
 
@@ -15,6 +15,29 @@ from app.services.executor import execution_manager
 async def lifespan(_: FastAPI):
     async with engine.begin() as connection:
         await connection.run_sync(Base.metadata.create_all)
+        agent_columns = await connection.run_sync(
+            lambda sync_connection: {
+                column["name"] for column in inspect(sync_connection).get_columns("agents")
+            }
+        )
+        if "persist_history" not in agent_columns:
+            await connection.execute(
+                text("ALTER TABLE agents ADD COLUMN persist_history BOOLEAN NOT NULL DEFAULT 1")
+            )
+            await connection.execute(
+                text(
+                    "UPDATE agents SET persist_history = 0 "
+                    "WHERE script_path LIKE '%run_email_reader.py%'"
+                )
+            )
+            await connection.execute(
+                text(
+                    "DELETE FROM execution_logs WHERE agent_id IN ("
+                    "SELECT id FROM agents WHERE persist_history = 0 "
+                    "AND script_path LIKE '%run_email_reader.py%'"
+                    ")"
+                )
+            )
     yield
     for task in tuple(execution_manager._tasks):
         task.cancel()
@@ -48,3 +71,5 @@ async def execution_logs(websocket: WebSocket, execution_id: int) -> None:
         await websocket.close()
     except WebSocketDisconnect:
         return
+    finally:
+        execution_manager.release_ephemeral(execution_id)

@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
-import { Activity, Bot, CirclePlus, Cpu, RefreshCw, Sparkles } from "lucide-react";
+import { Activity, Bot, CirclePlus, Cpu, MessageCircle, RefreshCw, Sparkles } from "lucide-react";
 import AgentGrid from "./components/AgentGrid.jsx";
 import AgentModalForm from "./components/AgentModalForm.jsx";
+import ChatWorkspace from "./components/ChatWorkspace.jsx";
 import ExecutionConsole from "./components/ExecutionConsole.jsx";
 import ExecutionHistory from "./components/ExecutionHistory.jsx";
 import Badge from "./components/common/Badge.jsx";
@@ -21,14 +22,25 @@ export default function App() {
   const [historyRefresh, setHistoryRefresh] = useState(0);
   const [execution, setExecution] = useState(null);
   const [executionAgentName, setExecutionAgentName] = useState("");
+  const [page, setPage] = useState("chat");
+  const [chatBusy, setChatBusy] = useState(false);
 
   const loadData = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
-      const [agentList, modelResult] = await Promise.all([api.getAgents(), api.getModels()]);
-      setAgents(agentList);
-      setModels(modelResult.models || []);
+      const [agentResult, modelResult] = await Promise.allSettled([api.getAgents(), api.getModels()]);
+      if (agentResult.status === "fulfilled") {
+        setAgents(agentResult.value);
+      } else {
+        throw agentResult.reason;
+      }
+      if (modelResult.status === "fulfilled") {
+        setModels(modelResult.value.models || []);
+      } else {
+        setModels([]);
+        setError(`No se pudieron cargar los modelos: ${modelResult.reason.message}`);
+      }
     } catch (cause) {
       setError(cause.message);
     } finally {
@@ -102,24 +114,30 @@ export default function App() {
               <p className="mt-1 text-sm text-zinc-500">Orquesta y observa tus agentes locales en un solo lugar.</p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <Button variant={page === "chat" ? "primary" : "ghost"} onClick={() => setPage("chat")}><MessageCircle size={15} /> Chat</Button>
+            <Button variant={page === "agents" ? "primary" : "ghost"} disabled={chatBusy} onClick={() => setPage("agents")}><Bot size={15} /> Agentes</Button>
             <Button onClick={loadData} aria-label="Actualizar"><RefreshCw size={15} /> Actualizar</Button>
-            <Button variant="primary" onClick={() => { setEditingAgent(null); setModalOpen(true); }}><CirclePlus size={16} /> Nuevo agente</Button>
+            {page === "agents" && <Button variant="primary" onClick={() => { setEditingAgent(null); setModalOpen(true); }}><CirclePlus size={16} /> Nuevo agente</Button>}
           </div>
         </header>
 
+        {error && (
+          <div role="alert" className="mb-6 flex items-start justify-between gap-3 rounded-xl border border-red-400/20 bg-red-400/[0.06] px-4 py-3 text-sm text-red-200">
+            <span>{error}. Verifica que FastAPI, Ollama y el agente estén disponibles.</span>
+            <button onClick={() => setError("")} className="text-red-300 hover:text-white">Cerrar</button>
+          </div>
+        )}
+
+        {page === "chat" ? (
+          <ChatWorkspace agents={agents} models={models} onError={setError} onBusyChange={setChatBusy} />
+        ) : (
+        <>
         <div className="mb-7 grid gap-3 sm:grid-cols-3">
           <Summary icon={<Bot size={17} />} label="Agentes configurados" value={agents.length} />
           <Summary icon={<Cpu size={17} />} label="Modelos disponibles" value={models.length} />
           <Summary icon={<Activity size={17} />} label="Motor local" value="Ollama" trailing={<Badge status={models.length ? "success" : "idle"}>{models.length ? "Conectado" : "Revisar"}</Badge>} />
         </div>
-
-        {error && (
-          <div role="alert" className="mb-6 flex items-start justify-between gap-3 rounded-xl border border-red-400/20 bg-red-400/[0.06] px-4 py-3 text-sm text-red-200">
-            <span>{error}. Verifica que FastAPI y Ollama estén activos.</span>
-            <button onClick={() => setError("")} className="text-red-300 hover:text-white">Cerrar</button>
-          </div>
-        )}
 
         <section className="mb-10">
           <div className="mb-4 flex items-end justify-between">
@@ -144,6 +162,8 @@ export default function App() {
         </section>
 
         <ExecutionHistory agent={historyAgent} refreshKey={historyRefresh} onView={viewExecution} />
+        </>
+        )}
       </div>
       <AgentModalForm
         open={modalOpen}

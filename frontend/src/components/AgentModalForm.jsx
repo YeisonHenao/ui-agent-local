@@ -11,7 +11,8 @@ const emptyAgent = {
   system_prompt: "",
   ollama_model: "qwen2.5:3b",
   script_path: "example_agent.py",
-  tools_config: {}
+  tools_config: {},
+  persist_history: true
 };
 
 export default function AgentModalForm({ open, onClose, onSave, agent, models, saving }) {
@@ -67,6 +68,20 @@ export default function AgentModalForm({ open, onClose, onSave, agent, models, s
         </div>
         <Textarea label="System prompt" value={form.system_prompt} onChange={update("system_prompt")} rows={4} placeholder="Instrucciones base del agente..." />
         <Textarea label="Tools config (JSON)" value={toolsText} onChange={(event) => setToolsText(event.target.value)} rows={4} spellCheck={false} />
+        <label className="flex items-start gap-3 rounded-xl border border-line bg-black/20 p-3.5">
+          <input
+            type="checkbox"
+            className="mt-0.5 accent-lime-400"
+            checked={form.persist_history}
+            onChange={(event) => setForm((current) => ({ ...current, persist_history: event.target.checked }))}
+          />
+          <span>
+            <span className="block text-sm font-medium text-zinc-200">Guardar conversaciones e historial</span>
+            <span className="mt-1 block text-xs leading-5 text-zinc-500">
+              Desactívalo para agentes que procesan correo u otros datos privados. No se guardarán mensajes, resultados ni logs.
+            </span>
+          </span>
+        </label>
         {formError && <p role="alert" className="text-sm text-red-300">{formError}</p>}
         <div className="flex justify-end gap-2 pt-2">
           <Button type="button" onClick={onClose}>Cancelar</Button>

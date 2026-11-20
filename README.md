@@ -1,6 +1,14 @@
 # Local AI Agents Dashboard
 
-Dashboard local para administrar agentes Python conectados a Ollama, con API FastAPI, historial SQLite y logs en tiempo real por WebSocket.
+Dashboard local para conversar directamente con modelos Ollama o administrar agentes Python, con API FastAPI, historial SQLite y logs de ejecuciones en tiempo real por WebSocket.
+
+El chat general conversa directamente con Ollama, mantiene el contexto y guarda sus conversaciones en SQLite. También puedes cambiar al modo de ejecución para invocar agentes configurados: sus conversaciones se guardan según la configuración de cada agente, y los agentes de datos privados pueden ejecutarse sin guardar prompts, respuestas ni logs.
+
+En el chat general puedes adjuntar archivos TXT, Markdown, CSV o JSON, o seleccionar una carpeta desde el navegador. Los adjuntos pequeños (hasta 32.000 caracteres en total) se incluyen directamente en la consulta del modelo; los mayores se inspeccionan con herramientas limitadas a los archivos seleccionados. Los archivos y resultados internos de herramientas no se guardan en SQLite; el historial sí conserva la pregunta y la respuesta final. Las herramientas disponibles y el formato de sus resultados se publican en `GET /api/chat/tools`.
+
+Las respuestas del asistente se muestran como Markdown compatible con GitHub Flavored Markdown: encabezados, listas, tareas, enlaces, tablas con desplazamiento horizontal y bloques de código con botón para copiar. El modelo recibe instrucciones para generar ese formato; el renderizador no permite HTML arbitrario.
+
+La sección **Memoria entre chats** permite guardar, editar y borrar hasta 20 recuerdos manuales que el asistente usará como contexto. No se guardan automáticamente. Para respuestas más consistentes se usa una temperatura baja y se piden referencias a líneas de los archivos cuando correspondan; esto no garantiza que las respuestas generales sean siempre correctas.
 
 ## Estructura
 

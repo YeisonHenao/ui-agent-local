@@ -9,6 +9,7 @@ def main() -> int:
     model = os.environ.get("OLLAMA_MODEL", "qwen2.5:3b")
     base_url = os.environ.get("OLLAMA_BASE_URL", "http://localhost:11434").rstrip("/")
     system_prompt = os.environ.get("AGENT_SYSTEM_PROMPT", "Eres un asistente útil.")
+    user_message = os.environ.get("AGENT_USER_MESSAGE", "").strip()
     tools = json.loads(os.environ.get("AGENT_TOOLS_CONFIG", "{}"))
 
     print(f"Usando modelo {model} en Ollama...")
@@ -16,7 +17,7 @@ def main() -> int:
     payload = json.dumps(
         {
             "model": model,
-            "prompt": "Describe brevemente qué puede hacer este agente local.",
+            "prompt": user_message or "Describe brevemente qué puede hacer este agente local.",
             "system": system_prompt,
             "stream": False,
         }
